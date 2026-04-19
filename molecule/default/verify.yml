@@ -1,0 +1,19 @@
+---
+- name: Verify
+  hosts: all
+  become: false
+  gather_facts: true
+
+  tasks:
+    - name: Verify hailo-gen-ai-model-zoo is installed
+      ansible.builtin.command:
+        cmd: dpkg -s hailo-gen-ai-model-zoo
+      register: hailo_ollama_pkg
+      changed_when: false
+      failed_when: hailo_ollama_pkg.rc != 0
+
+    - name: Verify hailo-ollama systemd service file exists
+      ansible.builtin.stat:
+        path: /etc/systemd/system/hailo-ollama.service
+      register: hailo_ollama_service
+      failed_when: not hailo_ollama_service.stat.exists

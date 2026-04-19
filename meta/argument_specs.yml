@@ -1,0 +1,132 @@
+---
+
+argument_specs:
+  main:
+    short_description: "Main entrypoint for the hailo_ollama role"
+    author: Kevin Horst <info@kevinhorst.de>
+    options:
+      hailo_ollama_version:
+        type: str
+        required: false
+        default: "5.1.1"
+        description:
+          - Version of the Hailo GenAI Model Zoo package.
+
+      hailo_ollama_deb_url:
+        type: str
+        required: false
+        description:
+          - Download URL for the Hailo GenAI Model Zoo Debian package.
+          - Defaults to the official Hailo URL for the configured version.
+
+      hailo_ollama_host:
+        type: str
+        required: false
+        default: "0.0.0.0"
+        description:
+          - Listen address for the hailo-ollama server.
+
+      hailo_ollama_port:
+        type: int
+        required: false
+        default: 8000
+        description:
+          - Listen port for the hailo-ollama server.
+
+      hailo_ollama_service_enabled:
+        type: bool
+        required: false
+        default: true
+        description:
+          - Whether to enable and start the hailo-ollama systemd service.
+
+      hailo_ollama_caddy_enabled:
+        type: bool
+        required: false
+        default: false
+        description:
+          - Deploy a Caddy reverse proxy with TLS in front of hailo-ollama and Open WebUI.
+          - Requires head1328.podman role to be applied first.
+
+      hailo_ollama_caddy_fqdn:
+        type: str
+        required: false
+        default: "ollama.local"
+        description:
+          - FQDN for the Caddy TLS certificate.
+
+      hailo_ollama_caddy_port:
+        type: int
+        required: false
+        default: 443
+        description:
+          - HTTPS port for the Caddy reverse proxy.
+          - If < 1024, iptables redirect is used automatically.
+
+      hailo_ollama_caddy_internal_port:
+        type: int
+        required: false
+        default: 8443
+        description:
+          - Internal unprivileged port Caddy binds to.
+          - Must be >= 1024.
+
+      hailo_ollama_caddy_port_redirect:
+        type: bool
+        required: false
+        default: true
+        description:
+          - Use iptables PREROUTING redirect for privileged ports.
+          - Only applies when caddy_port < 1024.
+          - Set to false if you handle port redirection externally.
+
+      hailo_ollama_caddy_firewall:
+        type: bool
+        required: false
+        default: true
+        description:
+          - Manage iptables rules to restrict the hailo-ollama port to loopback only.
+          - Set to false if you manage firewall rules externally.
+
+      hailo_ollama_caddy_podman_user:
+        type: str
+        required: false
+        default: podman
+        description:
+          - Podman user for the Caddy container.
+
+      hailo_ollama_webui_enabled:
+        type: bool
+        required: false
+        default: true
+        description:
+          - Deploy Open WebUI as a chat frontend.
+          - Requires head1328.podman role to be applied first.
+
+      hailo_ollama_webui_port:
+        type: int
+        required: false
+        default: 3000
+        description:
+          - Port for the Open WebUI frontend.
+
+      hailo_ollama_webui_image:
+        type: str
+        required: false
+        default: "ghcr.io/open-webui/open-webui:0.8"
+        description:
+          - Container image for Open WebUI.
+
+      hailo_ollama_webui_default_model:
+        type: str
+        required: false
+        default: ""
+        description:
+          - Default model for Open WebUI tasks and chat.
+
+      hailo_ollama_webui_podman_user:
+        type: str
+        required: false
+        default: podman
+        description:
+          - Podman user for the Open WebUI container.
