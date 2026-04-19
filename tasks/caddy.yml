@@ -146,3 +146,25 @@
         jump: REDIRECT
         to_ports: "{{ hailo_ollama_caddy_internal_port }}"
         comment: "hailo-ollama: redirect {{ hailo_ollama_caddy_port }} to caddy"
+
+- name: Persist iptables rules
+  when: hailo_ollama_caddy_firewall
+  block:
+    - name: Install iptables-persistent
+      become: true
+      ansible.builtin.apt:
+        name: iptables-persistent
+        state: present
+
+    - name: Save iptables rules (IPv4)
+      become: true
+      community.general.iptables_state:
+        state: saved
+        path: /etc/iptables/rules.v4
+
+    - name: Save iptables rules (IPv6)
+      become: true
+      community.general.iptables_state:
+        state: saved
+        path: /etc/iptables/rules.v6
+        ip_version: ipv6

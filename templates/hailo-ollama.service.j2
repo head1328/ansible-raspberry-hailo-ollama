@@ -5,6 +5,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
+Environment=OLLAMA_HOST={{ hailo_ollama_host }}:{{ hailo_ollama_port }}
 ExecStart=/usr/bin/hailo-ollama
 Restart=on-failure
 RestartSec=5

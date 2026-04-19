@@ -12,6 +12,11 @@ export ANSIBLE_FORCE_COLOR=1
 .PHONY: test
 test:
 	molecule test
+	molecule test --scenario-name vendor
+
+.PHONY: test-vendor
+test-vendor:
+	molecule test --scenario-name vendor
 
 .PHONY: test-all
 test-all:
@@ -36,6 +41,11 @@ login:
 .PHONY: test-simulate
 test-simulate:
 	molecule test --scenario-name simulate
+
+.PHONY: symlink
+symlink:
+	rm -rf ~/.ansible/roles/head1328.hailo_ollama
+	ln -s $(CURDIR) ~/.ansible/roles/head1328.hailo_ollama
 
 .PHONY: lint
 lint:

@@ -1,5 +1,16 @@
 ---
 
+- name: Set effective version and URL
+  ansible.builtin.set_fact:
+    _hailo_ollama_version: >-
+      {{ hailo_ollama_vendor_version
+      if hailo_ollama_source == 'vendor'
+      else hailo_ollama_version }}
+    _hailo_ollama_deb_url: >-
+      {{ hailo_ollama_vendor_deb_url
+      if hailo_ollama_source == 'vendor'
+      else hailo_ollama_deb_url }}
+
 - name: Check if hailo-gen-ai-model-zoo is already installed
   ansible.builtin.command:
     cmd: dpkg-query -W -f='${Version}' hailo-gen-ai-model-zoo
@@ -7,24 +18,42 @@
   changed_when: false
   failed_when: false
 
+- name: Purge existing GenAI Model Zoo before install
+  when:
+    - hailo_ollama_installed.rc == 0
+    - hailo_ollama_installed.stdout != _hailo_ollama_version
+  ansible.builtin.command:
+    cmd: dpkg --force-all --purge hailo-gen-ai-model-zoo
+  changed_when: true
+
 - name: Install Hailo GenAI Model Zoo
-  when: hailo_ollama_installed.rc != 0 or hailo_ollama_installed.stdout != hailo_ollama_version
+  when: >-
+    hailo_ollama_installed.rc != 0 or
+    hailo_ollama_installed.stdout != _hailo_ollama_version
   block:
     - name: Download Hailo GenAI Model Zoo package
       ansible.builtin.get_url:
-        url: "{{ hailo_ollama_deb_url }}"
-        dest: "/tmp/hailo_gen_ai_model_zoo_{{ hailo_ollama_version }}_arm64.deb"
+        url: "{{ _hailo_ollama_deb_url }}"
+        dest: "/tmp/hailo_gen_ai_model_zoo.deb"
         mode: '0644'
 
     - name: Install Hailo GenAI Model Zoo package
       ansible.builtin.apt:
-        deb: "/tmp/hailo_gen_ai_model_zoo_{{ hailo_ollama_version }}_arm64.deb"
+        deb: "/tmp/hailo_gen_ai_model_zoo.deb"
         state: present
 
     - name: Remove downloaded package
       ansible.builtin.file:
-        path: "/tmp/hailo_gen_ai_model_zoo_{{ hailo_ollama_version }}_arm64.deb"
+        path: "/tmp/hailo_gen_ai_model_zoo.deb"
         state: absent
+
+- name: Ensure hailo-ollama config directory exists
+  ansible.builtin.file:
+    path: /etc/xdg/hailo-ollama
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
 
 - name: Deploy hailo-ollama configuration
   ansible.builtin.template:
@@ -118,6 +147,24 @@
     to_ports: "{{ hailo_ollama_caddy_internal_port }}"
     comment: "hailo-ollama: redirect {{ hailo_ollama_caddy_port }} to caddy"
     state: absent
+
+- name: Save iptables after rule removal
+  when:
+    - not hailo_ollama_caddy_enabled
+    - hailo_ollama_caddy_firewall
+  block:
+    - name: Save iptables rules (IPv4)
+      become: true
+      community.general.iptables_state:
+        state: saved
+        path: /etc/iptables/rules.v4
+
+    - name: Save iptables rules (IPv6)
+      become: true
+      community.general.iptables_state:
+        state: saved
+        path: /etc/iptables/rules.v6
+        ip_version: ipv6
 
 - name: Configure Open WebUI
   ansible.builtin.include_tasks: webui.yml

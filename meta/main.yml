@@ -20,6 +20,4 @@ galaxy_info:
     - llm
     - ollama
 
-dependencies:
-  - role: head1328.hailo
-    hailo_variant: h10
+dependencies: []

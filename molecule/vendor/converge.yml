@@ -1,0 +1,13 @@
+---
+- name: Converge (vendor with Caddy)
+  hosts: all
+  become: true
+  gather_facts: true
+
+  roles:
+    - role: ansible-raspberry-hailo-ollama
+      hailo_ollama_source: vendor
+      hailo_ollama_port: 11434
+      hailo_ollama_caddy_enabled: true
+      hailo_ollama_caddy_fqdn: "{{ inventory_hostname }}.fritz.box"
+      tags: hailo_ollama
