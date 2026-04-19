@@ -148,6 +148,24 @@
     comment: "hailo-ollama: redirect {{ hailo_ollama_caddy_port }} to caddy"
     state: absent
 
+- name: Save iptables after rule removal
+  when:
+    - not hailo_ollama_caddy_enabled
+    - hailo_ollama_caddy_firewall
+  block:
+    - name: Save iptables rules (IPv4)
+      become: true
+      community.general.iptables_state:
+        state: saved
+        path: /etc/iptables/rules.v4
+
+    - name: Save iptables rules (IPv6)
+      become: true
+      community.general.iptables_state:
+        state: saved
+        path: /etc/iptables/rules.v6
+        ip_version: ipv6
+
 - name: Configure Open WebUI
   ansible.builtin.include_tasks: webui.yml
   when: hailo_ollama_webui_enabled
