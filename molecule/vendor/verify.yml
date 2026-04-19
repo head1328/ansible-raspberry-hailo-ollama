@@ -1,0 +1,53 @@
+---
+- name: Verify (vendor with Caddy)
+  hosts: all
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Verify hailo-gen-ai-model-zoo 5.3.0 is installed
+      ansible.builtin.command:
+        cmd: dpkg-query -W -f='${Version}' hailo-gen-ai-model-zoo
+      register: zoo_version
+      changed_when: false
+      failed_when: zoo_version.stdout != '5.3.0'
+
+    - name: Verify hailo-ollama service is running
+      ansible.builtin.command:
+        cmd: systemctl is-active hailo-ollama.service
+      changed_when: false
+      failed_when: ollama_svc.rc != 0
+      register: ollama_svc
+
+    - name: Verify Caddy container is running
+      become_user: podman
+      ansible.builtin.command:
+        cmd: >-
+          podman ps --filter name=hailo-ollama-caddy
+          --format '{{ '{{' }}.Status{{ '}}' }}'
+      changed_when: false
+      register: caddy_status
+      failed_when: "'Up' not in caddy_status.stdout"
+
+    - name: Verify iptables rules exist
+      ansible.builtin.command:
+        cmd: iptables-save
+      register: ipt_save
+      changed_when: false
+      failed_when: >-
+        'hailo-ollama: allow loopback' not in ipt_save.stdout or
+        'hailo-ollama: drop external access' not in ipt_save.stdout or
+        'hailo-ollama: redirect' not in ipt_save.stdout
+
+    - name: Reboot to test iptables persistence
+      ansible.builtin.reboot:
+
+    - name: Verify iptables rules persist after reboot
+      ansible.builtin.command:
+        cmd: iptables-save
+      register: ipt_save_post
+      changed_when: false
+      failed_when: >-
+        'hailo-ollama: allow loopback' not in ipt_save_post.stdout or
+        'hailo-ollama: drop external access' not in ipt_save_post.stdout or
+        'hailo-ollama: redirect' not in ipt_save_post.stdout

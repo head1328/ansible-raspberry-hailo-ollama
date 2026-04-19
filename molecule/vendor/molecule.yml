@@ -36,3 +36,5 @@ scenario:
     - dependency
     - syntax
     - converge
+    - idempotence
+    - verify

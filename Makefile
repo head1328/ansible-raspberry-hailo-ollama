@@ -12,6 +12,11 @@ export ANSIBLE_FORCE_COLOR=1
 .PHONY: test
 test:
 	molecule test
+	molecule test --scenario-name vendor
+
+.PHONY: test-vendor
+test-vendor:
+	molecule test --scenario-name vendor
 
 .PHONY: test-all
 test-all:
