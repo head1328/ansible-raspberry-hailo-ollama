@@ -1,0 +1,148 @@
+---
+
+- name: Lookup podman user information
+  become: true
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ hailo_ollama_caddy_podman_user }}"
+  register: hailo_ollama_caddy_getent
+
+- name: Set XDG_RUNTIME_DIR for podman user
+  ansible.builtin.set_fact:
+    hailo_ollama_caddy_xdg_runtime_dir: "/run/user/{{ hailo_ollama_caddy_getent.ansible_facts.getent_passwd[hailo_ollama_caddy_podman_user][1] }}"
+
+- name: Ensure Caddy config directory exists
+  become: true
+  ansible.builtin.file:
+    path: /etc/caddy/hailo-ollama
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Deploy Caddyfile
+  become: true
+  ansible.builtin.template:
+    src: Caddyfile.j2
+    dest: /etc/caddy/hailo-ollama/Caddyfile
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Handle hailo-ollama caddy changes
+
+- name: Ensure quadlet directory exists (rootless)
+  become: true
+  become_user: "{{ hailo_ollama_caddy_podman_user }}"
+  ansible.builtin.file:
+    path: "{{ hailo_ollama_caddy_podman_home }}/.config/containers/systemd"
+    state: directory
+    mode: '0755'
+
+- name: Ensure shared podman network exists (rootless)
+  become: true
+  become_user: "{{ hailo_ollama_caddy_podman_user }}"
+  containers.podman.podman_network:
+    name: internal
+    state: present
+
+- name: Create hailo-ollama-caddy quadlet (rootless)
+  become: true
+  become_user: "{{ hailo_ollama_caddy_podman_user }}"
+  containers.podman.podman_container:
+    name: hailo-ollama-caddy
+    image: docker.io/caddy:latest
+    state: quadlet
+    quadlet_dir: "{{ hailo_ollama_caddy_podman_home }}/.config/containers/systemd"
+    network:
+      - internal
+    publish:
+      - "{{ hailo_ollama_caddy_internal_port }}:443/tcp"
+    volume:
+      - "/etc/caddy/hailo-ollama/Caddyfile:/etc/caddy/Caddyfile:ro,Z"
+      - "hailo-ollama-caddy-data:/data:Z"
+      - "hailo-ollama-caddy-config:/config:Z"
+    quadlet_options:
+      - |
+        [Install]
+        WantedBy=default.target
+  notify: Handle hailo-ollama caddy changes
+
+- name: Reload systemd user daemon (rootless)
+  become: true
+  become_user: "{{ hailo_ollama_caddy_podman_user }}"
+  environment:
+    XDG_RUNTIME_DIR: "{{ hailo_ollama_caddy_xdg_runtime_dir }}"
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+    scope: user
+
+- name: Enable and start hailo-ollama-caddy (rootless)
+  become: true
+  become_user: "{{ hailo_ollama_caddy_podman_user }}"
+  environment:
+    XDG_RUNTIME_DIR: "{{ hailo_ollama_caddy_xdg_runtime_dir }}"
+  ansible.builtin.systemd_service:
+    name: hailo-ollama-caddy.service
+    enabled: true
+    state: started
+    scope: user
+
+- name: Restrict backend ports to loopback
+  when: hailo_ollama_caddy_firewall
+  block:
+    - name: Allow loopback access to hailo-ollama port
+      become: true
+      ansible.builtin.iptables:
+        chain: INPUT
+        in_interface: lo
+        protocol: tcp
+        destination_port: "{{ hailo_ollama_port }}"
+        jump: ACCEPT
+        comment: "hailo-ollama: allow loopback"
+
+    - name: Drop external access to hailo-ollama port
+      become: true
+      ansible.builtin.iptables:
+        chain: INPUT
+        protocol: tcp
+        destination_port: "{{ hailo_ollama_port }}"
+        jump: DROP
+        comment: "hailo-ollama: drop external access"
+
+    - name: Allow loopback access to Open WebUI port
+      become: true
+      ansible.builtin.iptables:
+        chain: INPUT
+        in_interface: lo
+        protocol: tcp
+        destination_port: "{{ hailo_ollama_webui_port }}"
+        jump: ACCEPT
+        comment: "hailo-ollama: allow loopback to webui"
+      when: hailo_ollama_webui_enabled
+
+    - name: Drop external access to Open WebUI port
+      become: true
+      ansible.builtin.iptables:
+        chain: INPUT
+        protocol: tcp
+        destination_port: "{{ hailo_ollama_webui_port }}"
+        jump: DROP
+        comment: "hailo-ollama: drop external access to webui"
+      when: hailo_ollama_webui_enabled
+
+- name: Redirect privileged port to Caddy
+  when:
+    - hailo_ollama_caddy_port_redirect
+    - hailo_ollama_caddy_port | int < 1024
+  block:
+    - name: Redirect privileged port to Caddy (tcp)
+      become: true
+      ansible.builtin.iptables:
+        table: nat
+        chain: PREROUTING
+        protocol: tcp
+        match: tcp
+        destination_port: "{{ hailo_ollama_caddy_port }}"
+        jump: REDIRECT
+        to_ports: "{{ hailo_ollama_caddy_internal_port }}"
+        comment: "hailo-ollama: redirect {{ hailo_ollama_caddy_port }} to caddy"

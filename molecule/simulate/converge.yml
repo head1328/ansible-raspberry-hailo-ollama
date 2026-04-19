@@ -1,0 +1,21 @@
+---
+- name: Simulate installation of Hailo Ollama
+  hosts: all
+  become: true
+  gather_facts: true
+  check_mode: true
+
+  tasks:
+    - name: "Simulate download: Hailo GenAI Model Zoo"
+      ansible.builtin.get_url:
+        url: "https://dev-public.hailo.ai/2026_04/Hailo10/hailo_gen_ai_model_zoo_5.3.0_arm64.deb"
+        dest: /tmp/hailo_gen_ai_model_zoo_5.3.0_arm64.deb
+        mode: '0644'
+
+    - name: "Simulate deploy: hailo-ollama systemd service"
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../../templates/hailo-ollama.service.j2"
+        dest: /etc/systemd/system/hailo-ollama.service
+        owner: root
+        group: root
+        mode: '0644'

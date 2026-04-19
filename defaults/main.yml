@@ -1,0 +1,25 @@
+---
+
+hailo_ollama_version: "5.1.1"
+hailo_ollama_deb_url: "https://dev-public.hailo.ai/2025_12/Hailo10/hailo_gen_ai_model_zoo_{{ hailo_ollama_version }}_arm64.deb"
+hailo_ollama_host: "0.0.0.0"
+hailo_ollama_port: 8000
+hailo_ollama_service_enabled: true
+
+# Caddy reverse proxy with TLS (requires head1328.podman)
+hailo_ollama_caddy_enabled: false
+hailo_ollama_caddy_fqdn: ollama.local
+hailo_ollama_caddy_port: 443
+hailo_ollama_caddy_internal_port: 8443
+hailo_ollama_caddy_port_redirect: true
+hailo_ollama_caddy_podman_user: podman
+hailo_ollama_caddy_podman_home: "/home/{{ hailo_ollama_caddy_podman_user }}"
+hailo_ollama_caddy_firewall: true
+
+# Open WebUI (requires head1328.podman)
+hailo_ollama_webui_enabled: true
+hailo_ollama_webui_port: 3000
+hailo_ollama_webui_image: "ghcr.io/open-webui/open-webui:0.8"
+hailo_ollama_webui_default_model: ""
+hailo_ollama_webui_podman_user: podman
+hailo_ollama_webui_podman_home: "/home/{{ hailo_ollama_webui_podman_user }}"

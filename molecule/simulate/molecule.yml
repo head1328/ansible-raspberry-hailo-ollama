@@ -1,0 +1,39 @@
+---
+dependency:
+  name: galaxy
+  options:
+    requirements-file: requirements.yml
+
+driver:
+  name: default
+
+platforms:
+  - name: ${MOLECULE_HOST:-testhost}
+    ansible_host: ${MOLECULE_HOST:-testhost}
+    ansible_user: ${MOLECULE_USER:-ansible}
+
+provisioner:
+  name: ansible
+  config_options:
+    defaults:
+      remote_tmp: /tmp/.ansible/tmp
+      callbacks_enabled: ansible.posix.profile_tasks
+      roles_path: ${MOLECULE_PROJECT_DIRECTORY}/..:~/.ansible/roles
+      allow_world_readable_tmpfiles: true
+  inventory:
+    host_vars:
+      ${MOLECULE_HOST:-testhost}:
+        ansible_become: true
+  playbooks:
+    converge: converge.yml
+    verify: verify.yml
+
+verifier:
+  name: ansible
+
+scenario:
+  test_sequence:
+    - dependency
+    - syntax
+    - converge
+    - verify

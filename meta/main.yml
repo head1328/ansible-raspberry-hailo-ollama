@@ -1,0 +1,25 @@
+---
+galaxy_info:
+  role_name: hailo_ollama
+  namespace: head1328
+  description: Setup Hailo Ollama LLM server for Hailo-10H AI HAT+ 2
+  author: Kevin Horst <info@kevinhorst.de>
+  company: KevinHorst IT
+  license: AGPL-3.0-or-later
+  min_ansible_version: '2.16.5'
+  platforms:
+    - name: Debian
+      versions:
+        - trixie
+  galaxy_tags:
+    - raspberry
+    - pi
+    - raspberrypi
+    - hailo
+    - ai
+    - llm
+    - ollama
+
+dependencies:
+  - role: head1328.hailo
+    hailo_variant: h10

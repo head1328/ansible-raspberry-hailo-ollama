@@ -1,0 +1,21 @@
+---
+
+- name: Reload systemd user daemon
+  become: true
+  become_user: "{{ hailo_ollama_caddy_podman_user }}"
+  environment:
+    XDG_RUNTIME_DIR: "{{ hailo_ollama_caddy_xdg_runtime_dir }}"
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+    scope: user
+
+- name: Enable and restart hailo-ollama-caddy (rootless)
+  become: true
+  become_user: "{{ hailo_ollama_caddy_podman_user }}"
+  environment:
+    XDG_RUNTIME_DIR: "{{ hailo_ollama_caddy_xdg_runtime_dir }}"
+  ansible.builtin.systemd_service:
+    name: hailo-ollama-caddy.service
+    enabled: true
+    state: restarted
+    scope: user

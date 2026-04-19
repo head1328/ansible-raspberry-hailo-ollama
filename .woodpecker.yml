@@ -1,0 +1,10 @@
+---
+when:
+  - event: push
+  - event: pull_request
+
+steps:
+  lint:
+    image: quay.io/ansible/creator-ee:latest
+    commands:
+      - ansible-lint --force-color .

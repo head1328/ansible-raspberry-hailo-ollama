@@ -1,0 +1,124 @@
+---
+
+- name: Check if hailo-gen-ai-model-zoo is already installed
+  ansible.builtin.command:
+    cmd: dpkg-query -W -f='${Version}' hailo-gen-ai-model-zoo
+  register: hailo_ollama_installed
+  changed_when: false
+  failed_when: false
+
+- name: Install Hailo GenAI Model Zoo
+  when: hailo_ollama_installed.rc != 0 or hailo_ollama_installed.stdout != hailo_ollama_version
+  block:
+    - name: Download Hailo GenAI Model Zoo package
+      ansible.builtin.get_url:
+        url: "{{ hailo_ollama_deb_url }}"
+        dest: "/tmp/hailo_gen_ai_model_zoo_{{ hailo_ollama_version }}_arm64.deb"
+        mode: '0644'
+
+    - name: Install Hailo GenAI Model Zoo package
+      ansible.builtin.apt:
+        deb: "/tmp/hailo_gen_ai_model_zoo_{{ hailo_ollama_version }}_arm64.deb"
+        state: present
+
+    - name: Remove downloaded package
+      ansible.builtin.file:
+        path: "/tmp/hailo_gen_ai_model_zoo_{{ hailo_ollama_version }}_arm64.deb"
+        state: absent
+
+- name: Deploy hailo-ollama configuration
+  ansible.builtin.template:
+    src: hailo-ollama.json.j2
+    dest: /etc/xdg/hailo-ollama/hailo-ollama.json
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart hailo-ollama
+
+- name: Deploy hailo-ollama systemd service
+  ansible.builtin.template:
+    src: hailo-ollama.service.j2
+    dest: /etc/systemd/system/hailo-ollama.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart hailo-ollama
+
+- name: Enable and start hailo-ollama service
+  ansible.builtin.systemd_service:
+    name: hailo-ollama.service
+    enabled: "{{ hailo_ollama_service_enabled }}"
+    state: "{{ 'started' if hailo_ollama_service_enabled else 'stopped' }}"
+    daemon_reload: true
+
+- name: Configure Caddy reverse proxy
+  ansible.builtin.include_tasks: caddy.yml
+  when: hailo_ollama_caddy_enabled
+
+- name: Remove firewall rules when Caddy is disabled
+  when:
+    - not hailo_ollama_caddy_enabled
+    - hailo_ollama_caddy_firewall
+  block:
+    - name: Remove loopback rule for hailo-ollama port
+      become: true
+      ansible.builtin.iptables:
+        chain: INPUT
+        in_interface: lo
+        protocol: tcp
+        destination_port: "{{ hailo_ollama_port }}"
+        jump: ACCEPT
+        comment: "hailo-ollama: allow loopback"
+        state: absent
+
+    - name: Remove drop rule for hailo-ollama port
+      become: true
+      ansible.builtin.iptables:
+        chain: INPUT
+        protocol: tcp
+        destination_port: "{{ hailo_ollama_port }}"
+        jump: DROP
+        comment: "hailo-ollama: drop external access"
+        state: absent
+
+    - name: Remove loopback rule for Open WebUI port
+      become: true
+      ansible.builtin.iptables:
+        chain: INPUT
+        in_interface: lo
+        protocol: tcp
+        destination_port: "{{ hailo_ollama_webui_port }}"
+        jump: ACCEPT
+        comment: "hailo-ollama: allow loopback to webui"
+        state: absent
+
+    - name: Remove drop rule for Open WebUI port
+      become: true
+      ansible.builtin.iptables:
+        chain: INPUT
+        protocol: tcp
+        destination_port: "{{ hailo_ollama_webui_port }}"
+        jump: DROP
+        comment: "hailo-ollama: drop external access to webui"
+        state: absent
+
+- name: Remove port redirect when Caddy is disabled
+  when:
+    - not hailo_ollama_caddy_enabled
+    - hailo_ollama_caddy_port_redirect
+    - hailo_ollama_caddy_port | int < 1024
+  become: true
+  ansible.builtin.iptables:
+    table: nat
+    chain: PREROUTING
+    protocol: tcp
+    match: tcp
+    destination_port: "{{ hailo_ollama_caddy_port }}"
+    jump: REDIRECT
+    to_ports: "{{ hailo_ollama_caddy_internal_port }}"
+    comment: "hailo-ollama: redirect {{ hailo_ollama_caddy_port }} to caddy"
+    state: absent
+
+- name: Configure Open WebUI
+  ansible.builtin.include_tasks: webui.yml
+  when: hailo_ollama_webui_enabled

@@ -1,0 +1,38 @@
+{{ hailo_ollama_caddy_fqdn }} {
+    tls internal
+
+    handle /ollama/config {
+        header Content-Type application/json
+        respond `{}` 200
+    }
+
+    handle /ollama/* {
+        uri strip_prefix /ollama
+        uri path_regexp /api/([a-z]+)/\d+$ /api/$1
+        reverse_proxy host.containers.internal:{{ hailo_ollama_port }}
+    }
+
+{% if hailo_ollama_webui_enabled %}
+    handle {
+        reverse_proxy host.containers.internal:{{ hailo_ollama_webui_port }}
+    }
+{% else %}
+    handle {
+        reverse_proxy host.containers.internal:{{ hailo_ollama_port }}
+    }
+{% endif %}
+}
+
+# Internal API proxy for Open WebUI backend
+# Stubs missing Ollama endpoints like /config
+:9090 {
+    handle /config {
+        header Content-Type application/json
+        respond `{}` 200
+    }
+
+    handle {
+        uri path_regexp /api/([a-z]+)/\d+$ /api/$1
+        reverse_proxy host.containers.internal:{{ hailo_ollama_port }}
+    }
+}

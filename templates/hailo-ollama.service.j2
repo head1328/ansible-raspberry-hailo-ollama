@@ -1,0 +1,13 @@
+[Unit]
+Description=Hailo Ollama LLM Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/hailo-ollama
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
