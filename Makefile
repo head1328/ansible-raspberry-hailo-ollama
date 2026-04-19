@@ -37,6 +37,11 @@ login:
 test-simulate:
 	molecule test --scenario-name simulate
 
+.PHONY: symlink
+symlink:
+	rm -rf ~/.ansible/roles/head1328.hailo_ollama
+	ln -s $(CURDIR) ~/.ansible/roles/head1328.hailo_ollama
+
 .PHONY: lint
 lint:
 	ansible-lint --force-color .

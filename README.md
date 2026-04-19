@@ -142,8 +142,27 @@ an admin account.
 When Caddy is not enabled, Open WebUI is available at
 `http://<hostname>:3000`.
 
-The Caddy TLS certificate is self-signed (internal CA).
-Accept it in the browser on first visit.
+Caddy uses an internal CA for TLS. To avoid browser
+warnings, export and trust the root CA certificate:
+
+```bash
+# On the Pi: export from container
+sudo su - podman -s /bin/bash -c \
+  'podman cp hailo-ollama-caddy:/data/caddy/pki/authorities/local/root.crt \
+  /tmp/caddy-root-ca.crt'
+sudo mv /tmp/caddy-root-ca.crt /home/$USER/caddy-root-ca.crt
+sudo chown $USER:$USER /home/$USER/caddy-root-ca.crt
+
+# On your machine: copy and install
+scp <hostname>:~/caddy-root-ca.crt .
+
+# macOS: add to keychain
+open caddy-root-ca.crt
+```
+
+In Keychain Access, double-click the "Caddy Local
+Authority" certificate, expand "Trust", and set "When
+using this certificate" to "Always Trust".
 
 ### Pull a model
 
@@ -261,23 +280,61 @@ Future versions of Open WebUI may fix these issues or
 introduce new ones. The `hailo_ollama_webui_image` is
 pinned to `0.8` to avoid breaking changes.
 
-## Version Compatibility
+## Installation Sources
 
-The GenAI Model Zoo package version must match the Hailo
-runtime version. Version 5.3.0 introduced a dependency
-on `hailort` which conflicts with `h10-hailort` on
-Hailo-10H hardware. Use version 5.1.1 which has no such
-issue.
+Two installation paths are available, controlled by
+`hailo_ollama_source` (and `hailo_source` in the
+`head1328.hailo` role):
+
+| | `raspberry` (default) | `vendor` |
+|---|---|---|
+| Runtime | `h10-hailort` 5.1.1 (Raspi repo) | `hailort` 5.3.0 (hailo.ai) |
+| PCIe driver | `h10-hailort-pcie-driver` 5.1.1 | `hailort-pcie-driver` 5.3.0 |
+| GenAI Model Zoo | 5.1.1 | 5.3.0 |
+| Source | Raspberry Pi apt repo | dev-public.hailo.ai |
+| Models | 5 (max 3B) | 6 (incl. qwen3:1.7b) |
+
+Both sources must match across `head1328.hailo` and
+`head1328.hailo_ollama`. Do not mix raspberry runtime
+with vendor model zoo or vice versa.
+
+**Switching between sources requires a reboot** (PCIe
+driver change) and **all pulled models will be lost**.
+Models must be re-pulled after switching. Open WebUI
+data (accounts, chats) is preserved in the Podman volume.
 
 ## Available Models
 
-The package includes manifests for:
+### Raspberry (5.1.1)
 
 - `deepseek_r1_distill_qwen:1.5b`
 - `llama3.2:3b`
 - `qwen2:1.5b`
 - `qwen2.5-coder:1.5b`
 - `qwen2.5-instruct:1.5b`
+
+### Vendor (5.3.0)
+
+- `deepseek_r1:1.5b`
+- `llama3.2:1b`
+- `qwen2:1.5b`
+- `qwen2.5:1.5b`
+- `qwen2.5-coder:1.5b`
+- `qwen3:1.7b`
+
+## Local Development
+
+Symlink the role into your local Ansible roles path for
+development without reinstalling:
+
+```bash
+make symlink
+```
+
+This creates a symlink at
+`~/.ansible/roles/head1328.hailo_ollama` pointing to the
+working directory. Changes are immediately available to
+playbooks.
 
 ## Testing
 
